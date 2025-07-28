@@ -2,8 +2,11 @@
 <html>
 <head>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Sales Report</title>
 </head>
 <body>
+  <h2>Sales Report</h2>
   <div id="graph"></div>
   <script>
     var graphs = {{ graphJSON | safe }};
