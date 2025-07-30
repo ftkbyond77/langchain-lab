@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -661,21 +662,30 @@ def main():
     """
     Main function to run the Fraud Detection Analytics System
     """
-    print("🔍 Initializing Fraud Detection Analytics System...")
+    print("Initializing Fraud Detection Analytics System...")
+    
+    # Load environment variables from .env file
+    load_dotenv()
+    
+    # Verify OPENAI_API_KEY is loaded
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY not found in .env file. Please ensure it is set correctly.")
+    else:
+        print("OPENAI_API_KEY loaded successfully")
     
     # Configuration
     DATA_PATH = os.path.join('data', 'PS_20174392719_1491204439457_log.csv')
-    OPENAI_API_KEY = None  # Set your OpenAI API key here or use environment variable
     
     # Verify data file exists
     if not os.path.exists(DATA_PATH):
-        print(f"❌ Error: Data file not found at {DATA_PATH}")
+        print(f"Error: Data file not found at {DATA_PATH}")
         print("Please ensure the data file is in the correct location.")
         return
     
     try:
         # Initialize the analytics system
-        analytics = FraudDetectionAnalytics(DATA_PATH, OPENAI_API_KEY)
+        analytics = FraudDetectionAnalytics(DATA_PATH, openai_api_key)
         
         # Create Flask app
         app = create_flask_app(analytics)
@@ -685,25 +695,25 @@ def main():
         with open('templates/dashboard.html', 'w') as f:
             f.write(dashboard_template)
         
-        print("✅ System initialized successfully!")
-        print("\n🚀 Starting web dashboard...")
-        print("📊 Dashboard will be available at: http://localhost:5000")
-        print("\n🔧 Available features:")
-        print("   • Real-time fraud analytics")
-        print("   • AI-powered insights")
-        print("   • Interactive visualizations")
-        print("   • Machine learning predictions")
-        print("   • Comprehensive PDF reports")
+        print("System initialized successfully!")
+        print("\nStarting web dashboard...")
+        print("Dashboard will be available at: http://localhost:5000")
+        print("\nAvailable features:")
+        print("   - Real-time fraud analytics")
+        print("   - AI-powered insights")
+        print("   - Interactive visualizations")
+        print("   - Machine learning predictions")
+        print("   - Comprehensive PDF reports")
         
         # Start Flask app
         app.run(debug=True, host='0.0.0.0', port=5000)
         
     except Exception as e:
-        print(f"❌ Error initializing system: {str(e)}")
-        print("\n🔧 Troubleshooting tips:")
-        print("   • Ensure all required packages are installed")
-        print("   • Set OPENAI_API_KEY environment variable for AI features")
-        print("   • Check data file path and format")
+        print(f"Error initializing system: {str(e)}")
+        print("\nTroubleshooting tips:")
+        print("   - Ensure all required packages are installed")
+        print("   - Verify OPENAI_API_KEY in .env file")
+        print("   - Check data file path and format")
 
 # Advanced Analytics Features
 class AdvancedFraudAnalytics:

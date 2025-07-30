@@ -1,0 +1,14 @@
+Set PYTHONUTF8 Environment Variable (Windows):
+Before running the script, set the environment variable to enable UTF-8 encoding:
+
+``` 
+    set PYTHONUTF8=1
+    python fraud_detection_system.py
+
+```
+
+To make it persistent:
+
+```
+    setx PYTHONUTF8 1
+```

@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .metric { background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .metric h3 { margin: 0; color: #667eea; }
+        .metric p { font-size: 24px; font-weight: bold; margin: 10px 0; }
+        .btn { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #5a6fd8; }
+        .chart-container { height: 400px; margin: 20px 0; }
+        .ai-chat { background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .chat-input { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .loading { display: none; color: #667eea; }
+        .response { background: white; padding: 15px; border-radius: 5px; margin-top: 10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Fraud Detection Analytics Dashboard</h1>
+            <p>AI-Powered Financial Transaction Analysis</p>
+        </div>
+        
+        <div class="metrics" id="metrics">
+            <!-- Metrics will be loaded here -->
+        </div>
+        
+        <div class="card">
+            <h2>📊 Data Visualizations</h2>
+            <button class="btn" onclick="generateVisualizations()">Generate Visualizations</button>
+            <div id="visualizations">
+                <img id="fraud-analysis" src="/static/fraud_analysis.png" style="max-width: 100%; display: none;">
+                <img id="correlation-heatmap" src="/static/correlation_heatmap.png" style="max-width: 100%; display: none;">
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🤖 AI Fraud Analyst</h2>
+            <div class="ai-chat">
+                <input type="text" class="chat-input" id="question" placeholder="Ask the AI analyst about fraud patterns...">
+                <button class="btn" onclick="askAI()">Ask AI</button>
+                <div class="loading" id="ai-loading">🤔 AI is analyzing...</div>
+                <div class="response" id="ai-response"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🎯 Machine Learning Models</h2>
+            <button class="btn" onclick="buildModels()">Build Prediction Models</button>
+            <div id="model-results"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📄 Generate Report</h2>
+            <button class="btn" onclick="generateReport()">Generate PDF Report</button>
+            <div id="report-status"></div>
+            <a id="download-link" style="display: none;" class="btn" href="/download_report">Download Report</a>
+        </div>
+    </div>
+
+    <script>
+        // Load initial data
+        loadMetrics();
+        
+        async function loadMetrics() {
+            try {
+                const response = await fetch('/api/data_overview');
+                const data = await response.json();
+                
+                const metricsHtml = `
+                    <div class="metric">
+                        <h3>Total Transactions</h3>
+                        <p>${data.total_transactions.toLocaleString()}</p>
+                    </div>
+                    <div class="metric">
+                        <h3>Fraud Cases</h3>
+                        <p>${data.fraud_cases.toLocaleString()}</p>
+                    </div>
+                    <div class="metric">
+                        <h3>Fraud Rate</h3>
+                        <p>${data.fraud_rate.toFixed(2)}%</p>
+                    </div>
+                    <div class="metric">
+                        <h3>Transaction Types</h3>
+                        <p>${Object.keys(data.transaction_types).length}</p>
+                    </div>
+                `;
+                
+                document.getElementById('metrics').innerHTML = metricsHtml;
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        }
+        
+        async function generateVisualizations() {
+            try {
+                await fetch('/api/visualizations');
+                document.getElementById('fraud-analysis').style.display = 'block';
+                document.getElementById('correlation-heatmap').style.display = 'block';
+                // Refresh images with timestamp to avoid cache
+                const timestamp = new Date().getTime();
+                document.getElementById('fraud-analysis').src = `/static/fraud_analysis.png?t=${timestamp}`;
+                document.getElementById('correlation-heatmap').src = `/static/correlation_heatmap.png?t=${timestamp}`;
+            } catch (error) {
+                console.error('Error generating visualizations:', error);
+            }
+        }
+        
+        async function askAI() {
+            const question = document.getElementById('question').value;
+            if (!question) return;
+            
+            document.getElementById('ai-loading').style.display = 'block';
+            document.getElementById('ai-response').innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/ai_analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question })
+                });
+                
+                const data = await response.json();
+                document.getElementById('ai-response').innerHTML = data.response;
+            } catch (error) {
+                document.getElementById('ai-response').innerHTML = 'Error: ' + error.message;
+            }
+            
+            document.getElementById('ai-loading').style.display = 'none';
+        }
+        
+        async function buildModels() {
+            try {
+                const response = await fetch('/api/predict_model');
+                const data = await response.json();
+                
+                let resultsHtml = '<h3>Model Performance Results:</h3>';
+                for (const [modelName, metrics] of Object.entries(data)) {
+                    resultsHtml += `
+                        <div style="background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                            <h4>${modelName}</h4>
+                            <p><strong>AUC Score:</strong> ${metrics.auc_score.toFixed(3)}</p>
+                            <p><strong>Precision:</strong> ${metrics.classification_report['weighted avg']['precision'].toFixed(3)}</p>
+                            <p><strong>Recall:</strong> ${metrics.classification_report['weighted avg']['recall'].toFixed(3)}</p>
+                            <p><strong>F1-Score:</strong> ${metrics.classification_report['weighted avg']['f1-score'].toFixed(3)}</p>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('model-results').innerHTML = resultsHtml;
+            } catch (error) {
+                document.getElementById('model-results').innerHTML = 'Error building models: ' + error.message;
+            }
+        }
+        
+        async function generateReport() {
+            document.getElementById('report-status').innerHTML = '📄 Generating report...';
+            
+            try {
+                const response = await fetch('/api/generate_report');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('report-status').innerHTML = '✅ Report generated successfully!';
+                    document.getElementById('download-link').style.display = 'inline-block';
+                }
+            } catch (error) {
+                document.getElementById('report-status').innerHTML = 'Error generating report: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
