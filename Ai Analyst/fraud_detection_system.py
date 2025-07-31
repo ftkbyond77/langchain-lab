@@ -21,7 +21,8 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 # LangChain imports
 from langchain.agents import Tool, initialize_agent
-from langchain.llms import OpenAI
+# from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 
@@ -58,7 +59,12 @@ class FraudDetectionAnalytics:
             os.environ["OPENAI_API_KEY"] = openai_api_key
         
         # Initialize LangChain components
-        self.llm = OpenAI(temperature=0.1, openai_api_key=openai_api_key)
+        # self.llm = OpenAI(temperature=0.1, openai_api_key=openai_api_key)
+        self.llm = ChatOpenAI(
+            temperature=0.1,
+            model="gpt-4o-mini",
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
         self.memory = ConversationBufferMemory(memory_key="chat_history")
         
         # Load and prepare data
@@ -501,7 +507,7 @@ dashboard_template = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Fraud Detection Analytics Dashboard</h1>
+            <h1>Fraud Detection Analytics Dashboard</h1>
             <p>AI-Powered Financial Transaction Analysis</p>
         </div>
         
@@ -510,7 +516,7 @@ dashboard_template = """
         </div>
         
         <div class="card">
-            <h2>📊 Data Visualizations</h2>
+            <h2>Data Visualizations</h2>
             <button class="btn" onclick="generateVisualizations()">Generate Visualizations</button>
             <div id="visualizations">
                 <img id="fraud-analysis" src="/static/fraud_analysis.png" style="max-width: 100%; display: none;">
@@ -519,23 +525,23 @@ dashboard_template = """
         </div>
         
         <div class="card">
-            <h2>🤖 AI Fraud Analyst</h2>
+            <h2>AI Fraud Analyst</h2>
             <div class="ai-chat">
                 <input type="text" class="chat-input" id="question" placeholder="Ask the AI analyst about fraud patterns...">
                 <button class="btn" onclick="askAI()">Ask AI</button>
-                <div class="loading" id="ai-loading">🤔 AI is analyzing...</div>
+                <div class="loading" id="ai-loading">AI is analyzing...</div>
                 <div class="response" id="ai-response"></div>
             </div>
         </div>
         
         <div class="card">
-            <h2>🎯 Machine Learning Models</h2>
+            <h2>Machine Learning Models</h2>
             <button class="btn" onclick="buildModels()">Build Prediction Models</button>
             <div id="model-results"></div>
         </div>
         
         <div class="card">
-            <h2>📄 Generate Report</h2>
+            <h2>Generate Report</h2>
             <button class="btn" onclick="generateReport()">Generate PDF Report</button>
             <div id="report-status"></div>
             <a id="download-link" style="display: none;" class="btn" href="/download_report">Download Report</a>
@@ -638,14 +644,14 @@ dashboard_template = """
         }
         
         async function generateReport() {
-            document.getElementById('report-status').innerHTML = '📄 Generating report...';
+            document.getElementById('report-status').innerHTML = 'Generating report...';
             
             try {
                 const response = await fetch('/api/generate_report');
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    document.getElementById('report-status').innerHTML = '✅ Report generated successfully!';
+                    document.getElementById('report-status').innerHTML = 'Report generated successfully!';
                     document.getElementById('download-link').style.display = 'inline-block';
                 }
             } catch (error) {
@@ -692,7 +698,7 @@ def main():
         
         # Create templates directory and save dashboard template
         os.makedirs('templates', exist_ok=True)
-        with open('templates/dashboard.html', 'w') as f:
+        with open('templates/dashboard.html', 'w', encoding='utf-8') as f:
             f.write(dashboard_template)
         
         print("System initialized successfully!")
@@ -948,42 +954,42 @@ if __name__ == "__main__":
     """
     
     print("""
-    🔍 Fraud Detection Analytics System
+    Fraud Detection Analytics System
     ===================================
     
     This system provides comprehensive fraud detection capabilities:
     
-    1. 📊 Data Analysis & Visualization
+    1. Data Analysis & Visualization
        • Transaction pattern analysis
        • Fraud distribution insights
        • Correlation analysis
        • Temporal pattern detection
     
-    2. 🤖 AI-Powered Analysis
+    2. AI-Powered Analysis
        • LangChain agents for intelligent insights
        • Natural language querying
        • Automated pattern recognition
        • Business recommendations
     
-    3. 🎯 Machine Learning Models
+    3. Machine Learning Models
        • Random Forest classifier
        • Logistic Regression
        • Isolation Forest for anomaly detection
        • Model performance evaluation
     
-    4. 🌐 Web Dashboard
+    4. Web Dashboard
        • Interactive Flask interface
        • Real-time visualizations
        • AI chat interface
        • Model management
     
-    5. 📄 Comprehensive Reporting
+    5. Comprehensive Reporting
        • PDF report generation
        • Executive summaries
        • Detailed analytics
        • Actionable insights
     
-    6. 🔬 Advanced Analytics (Bonus Features)
+    6. Advanced Analytics (Bonus Features)
        • Temporal analysis
        • Feature importance analysis
        • Anomaly detection

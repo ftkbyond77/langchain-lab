@@ -28,7 +28,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Fraud Detection Analytics Dashboard</h1>
+            <h1>Fraud Detection Analytics Dashboard</h1>
             <p>AI-Powered Financial Transaction Analysis</p>
         </div>
         
@@ -37,7 +37,7 @@
         </div>
         
         <div class="card">
-            <h2>📊 Data Visualizations</h2>
+            <h2>Data Visualizations</h2>
             <button class="btn" onclick="generateVisualizations()">Generate Visualizations</button>
             <div id="visualizations">
                 <img id="fraud-analysis" src="/static/fraud_analysis.png" style="max-width: 100%; display: none;">
@@ -46,23 +46,23 @@
         </div>
         
         <div class="card">
-            <h2>🤖 AI Fraud Analyst</h2>
+            <h2>AI Fraud Analyst</h2>
             <div class="ai-chat">
                 <input type="text" class="chat-input" id="question" placeholder="Ask the AI analyst about fraud patterns...">
                 <button class="btn" onclick="askAI()">Ask AI</button>
-                <div class="loading" id="ai-loading">🤔 AI is analyzing...</div>
+                <div class="loading" id="ai-loading">AI is analyzing...</div>
                 <div class="response" id="ai-response"></div>
             </div>
         </div>
         
         <div class="card">
-            <h2>🎯 Machine Learning Models</h2>
+            <h2>Machine Learning Models</h2>
             <button class="btn" onclick="buildModels()">Build Prediction Models</button>
             <div id="model-results"></div>
         </div>
         
         <div class="card">
-            <h2>📄 Generate Report</h2>
+            <h2>Generate Report</h2>
             <button class="btn" onclick="generateReport()">Generate PDF Report</button>
             <div id="report-status"></div>
             <a id="download-link" style="display: none;" class="btn" href="/download_report">Download Report</a>
@@ -165,14 +165,14 @@
         }
         
         async function generateReport() {
-            document.getElementById('report-status').innerHTML = '📄 Generating report...';
+            document.getElementById('report-status').innerHTML = 'Generating report...';
             
             try {
                 const response = await fetch('/api/generate_report');
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    document.getElementById('report-status').innerHTML = '✅ Report generated successfully!';
+                    document.getElementById('report-status').innerHTML = 'Report generated successfully!';
                     document.getElementById('download-link').style.display = 'inline-block';
                 }
             } catch (error) {
