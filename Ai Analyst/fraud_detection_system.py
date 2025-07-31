@@ -19,12 +19,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-# LangChain imports
-from langchain.agents import Tool, initialize_agent
-# from langchain.llms import OpenAI
+# LangChain imports (compatible with version 0.0.232)
+from langchain.agents import Tool, initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
+from langchain.chains import LLMChain
 
 # Flask for web interface
 from flask import Flask, render_template, jsonify, request, send_file
@@ -32,7 +32,7 @@ import threading
 import webbrowser
 
 # PDF generation
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -59,7 +59,6 @@ class FraudDetectionAnalytics:
             os.environ["OPENAI_API_KEY"] = openai_api_key
         
         # Initialize LangChain components
-        # self.llm = OpenAI(temperature=0.1, openai_api_key=openai_api_key)
         self.llm = ChatOpenAI(
             temperature=0.1,
             model="gpt-4o-mini",
@@ -159,6 +158,36 @@ class FraudDetectionAnalytics:
         self.model = results['RandomForest']['model']  # Use RandomForest as primary model
         return results
     
+    def score_transaction(self, transaction_data):
+        """Score a single transaction for fraud risk"""
+        # Prepare transaction features
+        categorical_features = ['type']
+        numerical_features = ['amount', 'oldbalanceOrg', 'newbalanceOrig', 
+                             'oldbalanceDest', 'newbalanceDest', 'hour', 'day']
+        
+        # Convert transaction_data to DataFrame if it's a dict
+        if isinstance(transaction_data, dict):
+            transaction_data = pd.DataFrame([transaction_data])
+        
+        # Encode categorical variables
+        le = LabelEncoder()
+        X_cat = pd.DataFrame()
+        for feature in categorical_features:
+            X_cat[feature] = le.fit_transform(transaction_data[feature])
+        
+        # Scale numerical features
+        X_num = self.scaler.transform(transaction_data[numerical_features])
+        X_num = pd.DataFrame(X_num, columns=numerical_features)
+        
+        # Combine features
+        X = pd.concat([X_num, X_cat], axis=1)
+        
+        # Predict risk score
+        if self.model is not None:
+            risk_score = self.model.predict_proba(X)[:, 1][0]
+            return risk_score
+        return None
+    
     def create_visualizations(self):
         """Create comprehensive visualizations"""
         print("Creating visualizations...")
@@ -246,13 +275,13 @@ class FraudDetectionAnalytics:
         return visualizations
     
     def setup_agents(self):
-        """Setup LangChain agents for analysis"""
+        """Setup Multi-Agent Collaboration System"""
         def analyze_fraud_patterns(query: str) -> str:
-            """Analyze fraud patterns in the dataset"""
+            """Data Analyst Agent: Analyze fraud patterns and statistics"""
             analysis = self.analyze_data_distribution()
             fraud_rate = analysis['fraud_distribution'][1] / len(self.df) * 100
             highest_fraud_type = analysis['fraud_by_type']['mean'].idxmax()
-            return f"""
+            result = f"""
             Fraud Analysis Results:
             - Overall fraud rate: {fraud_rate:.2f}%
             - Total transactions: {len(self.df):,}
@@ -260,11 +289,20 @@ class FraudDetectionAnalytics:
             - Transaction type with highest fraud rate: {highest_fraud_type}
             - Fraud rate by type: {analysis['fraud_by_type']['mean'].to_dict()}
             """
+            # Store analysis for other agents
+            self.analysis_results['fraud_patterns'] = result
+            return result
         
         def predict_fraud_risk(query: str) -> str:
-            """Predict fraud risk using trained models"""
+            """Risk Scoring Agent: Predict fraud risk using trained models"""
             if self.model is None:
                 model_results = self.build_prediction_model()
+                self.analysis_results['model_performance'] = {
+                    'RandomForest': {
+                        'auc_score': model_results['RandomForest']['auc_score'],
+                        'classification_report': model_results['RandomForest']['classification_report']
+                    }
+                }
                 return f"""
                 Model Performance Results:
                 - Random Forest AUC: {model_results['RandomForest']['auc_score']:.3f}
@@ -272,23 +310,78 @@ class FraudDetectionAnalytics:
                 - Models trained successfully and ready for predictions
                 """
             else:
-                return "Fraud prediction model is ready. Provide transaction details for risk assessment."
+                try:
+                    # Parse transaction data from query (assuming JSON-like input)
+                    import json
+                    transaction_data = json.loads(query)
+                    risk_score = self.score_transaction(transaction_data)
+                    if risk_score is not None:
+                        self.analysis_results['risk_score'] = risk_score
+                        return f"Transaction Risk Score: {risk_score:.3f} (0 = low risk, 1 = high risk)"
+                    return "Error: Unable to score transaction. Ensure model is trained."
+                except json.JSONDecodeError:
+                    return "Error: Invalid transaction data format. Please provide JSON data."
         
-        def generate_insights(query: str) -> str:
-            """Generate business insights from fraud analysis"""
-            analysis = self.analyze_data_distribution()
-            insights = []
-            fraud_by_type = analysis['fraud_by_type']
-            high_risk_types = fraud_by_type[fraud_by_type['mean'] > 0.01].index.tolist()
-            insights.append(f"High-risk transaction types: {', '.join(high_risk_types)}")
-            fraud_df = self.df[self.df['isFraud'] == 1]
-            avg_fraud_amount = fraud_df['amount'].mean()
-            insights.append(f"Average fraud transaction amount: ${avg_fraud_amount:,.2f}")
-            peak_fraud_hour = self.df.groupby('hour')['isFraud'].mean().idxmax()
-            insights.append(f"Peak fraud hour: {peak_fraud_hour}:00")
-            return "\n".join([f"• {insight}" for insight in insights])
+        def generate_alerts(query: str) -> str:
+            """Alert Generation Agent: Create alerts for suspicious transactions"""
+            risk_score = self.analysis_results.get('risk_score', 0.5)
+            fraud_patterns = self.analysis_results.get('fraud_patterns', '')
+            
+            # Define alert thresholds
+            high_risk_threshold = 0.8
+            medium_risk_threshold = 0.5
+            
+            alert = []
+            if risk_score > high_risk_threshold:
+                alert.append(f"HIGH PRIORITY ALERT: Transaction risk score ({risk_score:.3f}) exceeds high-risk threshold ({high_risk_threshold})")
+            elif risk_score > medium_risk_threshold:
+                alert.append(f"MEDIUM PRIORITY ALERT: Transaction risk score ({risk_score:.3f}) exceeds medium-risk threshold ({medium_risk_threshold})")
+            
+            # Check patterns
+            if 'TRANSFER' in query.upper() or 'CASH_OUT' in query.upper():
+                alert.append("ALERT: Transaction type is high-risk based on historical patterns")
+            
+            # Use LLM to summarize alerts
+            alert_template = PromptTemplate(
+                input_variables=["alerts", "patterns"],
+                template="Generate a concise alert summary based on the following information:\nAlerts: {alerts}\nPatterns: {patterns}"
+            )
+            alert_chain = LLMChain(llm=self.llm, prompt=alert_template)
+            alert_summary = alert_chain.run(alerts="\n".join(alert), patterns=fraud_patterns)
+            
+            self.analysis_results['alerts'] = alert_summary
+            return alert_summary if alert else "No suspicious activity detected."
         
-        # Create tools
+        def generate_recommendations(query: str) -> str:
+            """Recommendation Agent: Suggest fraud prevention methods"""
+            fraud_patterns = self.analysis_results.get('fraud_patterns', '')
+            risk_score = self.analysis_results.get('risk_score', None)
+            alerts = self.analysis_results.get('alerts', '')
+            
+            recommendation_template = PromptTemplate(
+                input_variables=["patterns", "risk_score", "alerts", "query"],
+                template="""
+                Based on the following information, provide actionable fraud prevention recommendations:
+                Fraud Patterns: {patterns}
+                Risk Score: {risk_score}
+                Alerts: {alerts}
+                User Query: {query}
+                
+                Recommendations should be specific, practical, and prioritized.
+                """
+            )
+            recommendation_chain = LLMChain(llm=self.llm, prompt=recommendation_template)
+            recommendations = recommendation_chain.run(
+                patterns=fraud_patterns,
+                risk_score=str(risk_score) if risk_score else "Not available",
+                alerts=alerts,
+                query=query
+            )
+            
+            self.analysis_results['recommendations'] = recommendations
+            return recommendations
+        
+        # Create tools for each agent
         tools = [
             Tool(
                 name="Fraud Pattern Analyzer",
@@ -298,35 +391,50 @@ class FraudDetectionAnalytics:
             Tool(
                 name="Fraud Risk Predictor",
                 func=predict_fraud_risk,
-                description="Build and use machine learning models to predict fraud risk"
+                description="Build and use machine learning models to predict fraud risk. Accepts JSON transaction data for scoring."
             ),
             Tool(
-                name="Business Insights Generator",
-                func=generate_insights,
-                description="Generate actionable business insights from fraud analysis"
+                name="Alert Generator",
+                func=generate_alerts,
+                description="Generate alerts for suspicious transactions based on risk scores and patterns"
+            ),
+            Tool(
+                name="Recommendation Generator",
+                func=generate_recommendations,
+                description="Generate actionable fraud prevention recommendations based on analysis"
             )
         ]
         
-        # Initialize agent with zero-shot-react-description
+        # Initialize collaborative agent system
         self.agent_executor = initialize_agent(
             tools=tools,
             llm=self.llm,
-            agent="zero-shot-react-description",
+            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             memory=self.memory,
             verbose=True,
             handle_parsing_errors=True
         )
 
-    def query_ai_analyst(self, question: str) -> str:
-        """Query the AI analyst agent"""
+    def query_ai_analyst(self, question: str) -> dict:
+        """Query the multi-agent system for comprehensive analysis"""
         try:
+            # Run the agent executor with the question
             response = self.agent_executor.run(question)
-            return response
+            
+            # Collect results from all agents
+            results = {
+                'fraud_patterns': self.analysis_results.get('fraud_patterns', ''),
+                'risk_score': self.analysis_results.get('risk_score', None),
+                'alerts': self.analysis_results.get('alerts', ''),
+                'recommendations': self.analysis_results.get('recommendations', ''),
+                'agent_response': response
+            }
+            return results
         except Exception as e:
-            return f"Error in AI analysis: {str(e)}"
+            return {'error': f"Error in AI analysis: {str(e)}"}
     
     def generate_pdf_report(self, filename="fraud_analysis_report.pdf"):
-        """Generate comprehensive PDF report"""
+        """Generate comprehensive PDF report including agent insights"""
         print("Generating PDF report...")
         
         doc = SimpleDocTemplate(filename, pagesize=letter)
@@ -352,7 +460,7 @@ class FraudDetectionAnalytics:
         summary_text = f"""
         This report presents a comprehensive analysis of financial transaction data for fraud detection.
         The dataset contains {len(self.df):,} transactions with a fraud rate of {fraud_rate:.2f}%.
-        Key findings include transaction type vulnerabilities, temporal patterns, and risk factors.
+        Key findings include transaction type vulnerabilities, temporal patterns, and AI-generated insights.
         """
         story.append(Paragraph(summary_text, styles['Normal']))
         story.append(Spacer(1, 12))
@@ -383,36 +491,30 @@ class FraudDetectionAnalytics:
         story.append(table)
         story.append(Spacer(1, 12))
         
-        # Fraud by Transaction Type
-        story.append(Paragraph("Fraud Analysis by Transaction Type", styles['Heading2']))
+        # AI Agent Insights
+        story.append(Paragraph("Multi-Agent AI Analysis", styles['Heading2']))
+        ai_results = self.query_ai_analyst("Provide comprehensive fraud analysis including patterns, risk assessment, alerts, and recommendations")
         
-        fraud_by_type = self.df.groupby('type')['isFraud'].agg(['count', 'sum', 'mean'])
-        fraud_table_data = [['Transaction Type', 'Total', 'Fraud Cases', 'Fraud Rate']]
-        
-        for tx_type in fraud_by_type.index:
-            total = fraud_by_type.loc[tx_type, 'count']
-            fraud_cases = fraud_by_type.loc[tx_type, 'sum']
-            fraud_rate_type = fraud_by_type.loc[tx_type, 'mean'] * 100
-            fraud_table_data.append([tx_type, str(total), str(fraud_cases), f"{fraud_rate_type:.2f}%"])
-        
-        fraud_table = Table(fraud_table_data)
-        fraud_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        story.append(fraud_table)
+        # Fraud Patterns
+        story.append(Paragraph("Fraud Patterns", styles['Heading3']))
+        story.append(Paragraph(ai_results.get('fraud_patterns', 'No patterns available'), styles['Normal']))
         story.append(Spacer(1, 12))
         
-        # AI Insights
-        story.append(Paragraph("AI-Generated Insights", styles['Heading2']))
-        ai_insights = self.query_ai_analyst("Provide comprehensive insights about fraud patterns and recommendations")
-        story.append(Paragraph(ai_insights, styles['Normal']))
+        # Risk Scores
+        story.append(Paragraph("Risk Assessment", styles['Heading3']))
+        risk_score = ai_results.get('risk_score', None)
+        risk_text = f"Latest Transaction Risk Score: {risk_score:.3f}" if risk_score else "No risk score available"
+        story.append(Paragraph(risk_text, styles['Normal']))
+        story.append(Spacer(1, 12))
+        
+        # Alerts
+        story.append(Paragraph("Alerts", styles['Heading3']))
+        story.append(Paragraph(ai_results.get('alerts', 'No alerts generated'), styles['Normal']))
+        story.append(Spacer(1, 12))
+        
+        # Recommendations
+        story.append(Paragraph("Recommendations", styles['Heading3']))
+        story.append(Paragraph(ai_results.get('recommendations', 'No recommendations available'), styles['Normal']))
         
         # Build PDF
         doc.build(story)
@@ -424,7 +526,7 @@ def create_flask_app(analytics_system):
     app = Flask(__name__)
     app.secret_key = 'fraud_detection_key'
     
-    # Create static directory
+    # Create static and templates directories
     os.makedirs('static', exist_ok=True)
     os.makedirs('templates', exist_ok=True)
     
@@ -452,7 +554,7 @@ def create_flask_app(analytics_system):
     def ai_analysis():
         question = request.json.get('question', 'Analyze fraud patterns in the dataset')
         response = analytics_system.query_ai_analyst(question)
-        return jsonify({'response': response})
+        return jsonify(response)
     
     @app.route('/api/predict_model')
     def build_model():
@@ -474,6 +576,20 @@ def create_flask_app(analytics_system):
     def download_report():
         return send_file('fraud_analysis_report.pdf', as_attachment=True)
     
+    @app.route('/api/score_transaction', methods=['POST'])
+    def score_transaction():
+        transaction_data = request.json
+        risk_score = analytics_system.score_transaction(transaction_data)
+        if risk_score is not None:
+            # Trigger alert and recommendation agents
+            alert_result = analytics_system.query_ai_analyst(json.dumps(transaction_data))
+            return jsonify({
+                'risk_score': float(risk_score),
+                'alerts': alert_result.get('alerts', ''),
+                'recommendations': alert_result.get('recommendations', '')
+            })
+        return jsonify({'error': 'Unable to score transaction. Ensure model is trained.'})
+
     return app
 
 # HTML Template for Dashboard
@@ -502,6 +618,8 @@ dashboard_template = """
         .chat-input { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         .loading { display: none; color: #667eea; }
         .response { background: white; padding: 15px; border-radius: 5px; margin-top: 10px; white-space: pre-wrap; }
+        .transaction-form { margin-top: 20px; }
+        .transaction-form input { margin: 5px; padding: 8px; width: 200px; }
     </style>
 </head>
 <body>
@@ -532,6 +650,22 @@ dashboard_template = """
                 <div class="loading" id="ai-loading">AI is analyzing...</div>
                 <div class="response" id="ai-response"></div>
             </div>
+        </div>
+        
+        <div class="card">
+            <h2>Real-Time Transaction Scoring</h2>
+            <div class="transaction-form">
+                <input type="text" id="tx-type" placeholder="Transaction Type (e.g., TRANSFER)">
+                <input type="number" id="tx-amount" placeholder="Amount">
+                <input type="number" id="tx-oldbalanceOrg" placeholder="Origin Old Balance">
+                <input type="number" id="tx-newbalanceOrig" placeholder="Origin New Balance">
+                <input type="number" id="tx-oldbalanceDest" placeholder="Destination Old Balance">
+                <input type="number" id="tx-newbalanceDest" placeholder="Destination New Balance">
+                <input type="number" id="tx-hour" placeholder="Hour (0-23)">
+                <input type="number" id="tx-day" placeholder="Day">
+                <button class="btn" onclick="scoreTransaction()">Score Transaction</button>
+            </div>
+            <div class="response" id="transaction-response"></div>
         </div>
         
         <div class="card">
@@ -611,12 +745,53 @@ dashboard_template = """
                 });
                 
                 const data = await response.json();
-                document.getElementById('ai-response').innerHTML = data.response;
+                let responseHtml = `<strong>Agent Response:</strong> ${data.agent_response || 'No response'}`;
+                if (data.fraud_patterns) responseHtml += `<br><strong>Fraud Patterns:</strong> ${data.fraud_patterns}`;
+                if (data.risk_score) responseHtml += `<br><strong>Risk Score:</strong> ${data.risk_score.toFixed(3)}`;
+                if (data.alerts) responseHtml += `<br><strong>Alerts:</strong> ${data.alerts}`;
+                if (data.recommendations) responseHtml += `<br><strong>Recommendations:</strong> ${data.recommendations}`;
+                document.getElementById('ai-response').innerHTML = responseHtml;
             } catch (error) {
                 document.getElementById('ai-response').innerHTML = 'Error: ' + error.message;
             }
             
             document.getElementById('ai-loading').style.display = 'none';
+        }
+        
+        async function scoreTransaction() {
+            const transactionData = {
+                type: document.getElementById('tx-type').value,
+                amount: parseFloat(document.getElementById('tx-amount').value) || 0,
+                oldbalanceOrg: parseFloat(document.getElementById('tx-oldbalanceOrg').value) || 0,
+                newbalanceOrig: parseFloat(document.getElementById('tx-newbalanceOrig').value) || 0,
+                oldbalanceDest: parseFloat(document.getElementById('tx-oldbalanceDest').value) || 0,
+                newbalanceDest: parseFloat(document.getElementById('tx-newbalanceDest').value) || 0,
+                hour: parseInt(document.getElementById('tx-hour').value) || 0,
+                day: parseInt(document.getElementById('tx-day').value) || 1
+            };
+            
+            document.getElementById('transaction-response').innerHTML = 'Scoring transaction...';
+            
+            try {
+                const response = await fetch('/api/score_transaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transactionData)
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    document.getElementById('transaction-response').innerHTML = `Error: ${data.error}`;
+                } else {
+                    document.getElementById('transaction-response').innerHTML = `
+                        <strong>Risk Score:</strong> ${data.risk_score.toFixed(3)}<br>
+                        <strong>Alerts:</strong> ${data.alerts || 'None'}<br>
+                        <strong>Recommendations:</strong> ${data.recommendations || 'None'}
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('transaction-response').innerHTML = 'Error: ' + error.message;
+            }
         }
         
         async function buildModels() {
@@ -706,10 +881,11 @@ def main():
         print("Dashboard will be available at: http://localhost:5000")
         print("\nAvailable features:")
         print("   - Real-time fraud analytics")
-        print("   - AI-powered insights")
+        print("   - AI-powered multi-agent insights")
         print("   - Interactive visualizations")
         print("   - Machine learning predictions")
         print("   - Comprehensive PDF reports")
+        print("   - Real-time transaction scoring")
         
         # Start Flask app
         app.run(debug=True, host='0.0.0.0', port=5000)
@@ -965,11 +1141,11 @@ if __name__ == "__main__":
        • Correlation analysis
        • Temporal pattern detection
     
-    2. AI-Powered Analysis
-       • LangChain agents for intelligent insights
-       • Natural language querying
-       • Automated pattern recognition
-       • Business recommendations
+    2. Multi-Agent AI System
+       • Data Analyst Agent for pattern analysis
+       • Risk Scoring Agent for real-time transaction scoring
+       • Alert Generation Agent for suspicious activity detection
+       • Recommendation Agent for fraud prevention strategies
     
     3. Machine Learning Models
        • Random Forest classifier
@@ -981,6 +1157,7 @@ if __name__ == "__main__":
        • Interactive Flask interface
        • Real-time visualizations
        • AI chat interface
+       • Real-time transaction scoring
        • Model management
     
     5. Comprehensive Reporting
@@ -998,7 +1175,7 @@ if __name__ == "__main__":
     Setup Instructions:
     ------------------
     1. Install required packages:
-       pip install langchain openai pandas numpy matplotlib seaborn scikit-learn flask plotly reportlab fpdf2
+       pip install langchain==0.0.232 openai pandas numpy matplotlib seaborn scikit-learn flask plotly reportlab
     
     2. Set OpenAI API key (for AI features):
        export OPENAI_API_KEY="your-api-key-here"

@@ -23,6 +23,8 @@
         .chat-input { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         .loading { display: none; color: #667eea; }
         .response { background: white; padding: 15px; border-radius: 5px; margin-top: 10px; white-space: pre-wrap; }
+        .transaction-form { margin-top: 20px; }
+        .transaction-form input { margin: 5px; padding: 8px; width: 200px; }
     </style>
 </head>
 <body>
@@ -53,6 +55,22 @@
                 <div class="loading" id="ai-loading">AI is analyzing...</div>
                 <div class="response" id="ai-response"></div>
             </div>
+        </div>
+        
+        <div class="card">
+            <h2>Real-Time Transaction Scoring</h2>
+            <div class="transaction-form">
+                <input type="text" id="tx-type" placeholder="Transaction Type (e.g., TRANSFER)">
+                <input type="number" id="tx-amount" placeholder="Amount">
+                <input type="number" id="tx-oldbalanceOrg" placeholder="Origin Old Balance">
+                <input type="number" id="tx-newbalanceOrig" placeholder="Origin New Balance">
+                <input type="number" id="tx-oldbalanceDest" placeholder="Destination Old Balance">
+                <input type="number" id="tx-newbalanceDest" placeholder="Destination New Balance">
+                <input type="number" id="tx-hour" placeholder="Hour (0-23)">
+                <input type="number" id="tx-day" placeholder="Day">
+                <button class="btn" onclick="scoreTransaction()">Score Transaction</button>
+            </div>
+            <div class="response" id="transaction-response"></div>
         </div>
         
         <div class="card">
@@ -132,12 +150,53 @@
                 });
                 
                 const data = await response.json();
-                document.getElementById('ai-response').innerHTML = data.response;
+                let responseHtml = `<strong>Agent Response:</strong> ${data.agent_response || 'No response'}`;
+                if (data.fraud_patterns) responseHtml += `<br><strong>Fraud Patterns:</strong> ${data.fraud_patterns}`;
+                if (data.risk_score) responseHtml += `<br><strong>Risk Score:</strong> ${data.risk_score.toFixed(3)}`;
+                if (data.alerts) responseHtml += `<br><strong>Alerts:</strong> ${data.alerts}`;
+                if (data.recommendations) responseHtml += `<br><strong>Recommendations:</strong> ${data.recommendations}`;
+                document.getElementById('ai-response').innerHTML = responseHtml;
             } catch (error) {
                 document.getElementById('ai-response').innerHTML = 'Error: ' + error.message;
             }
             
             document.getElementById('ai-loading').style.display = 'none';
+        }
+        
+        async function scoreTransaction() {
+            const transactionData = {
+                type: document.getElementById('tx-type').value,
+                amount: parseFloat(document.getElementById('tx-amount').value) || 0,
+                oldbalanceOrg: parseFloat(document.getElementById('tx-oldbalanceOrg').value) || 0,
+                newbalanceOrig: parseFloat(document.getElementById('tx-newbalanceOrig').value) || 0,
+                oldbalanceDest: parseFloat(document.getElementById('tx-oldbalanceDest').value) || 0,
+                newbalanceDest: parseFloat(document.getElementById('tx-newbalanceDest').value) || 0,
+                hour: parseInt(document.getElementById('tx-hour').value) || 0,
+                day: parseInt(document.getElementById('tx-day').value) || 1
+            };
+            
+            document.getElementById('transaction-response').innerHTML = 'Scoring transaction...';
+            
+            try {
+                const response = await fetch('/api/score_transaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transactionData)
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    document.getElementById('transaction-response').innerHTML = `Error: ${data.error}`;
+                } else {
+                    document.getElementById('transaction-response').innerHTML = `
+                        <strong>Risk Score:</strong> ${data.risk_score.toFixed(3)}<br>
+                        <strong>Alerts:</strong> ${data.alerts || 'None'}<br>
+                        <strong>Recommendations:</strong> ${data.recommendations || 'None'}
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('transaction-response').innerHTML = 'Error: ' + error.message;
+            }
         }
         
         async function buildModels() {

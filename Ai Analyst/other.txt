@@ -12,3 +12,29 @@ To make it persistent:
 ```
     setx PYTHONUTF8 1
 ```
+
+=== next plan ===
+
+1. AI Agent System Development
+Multi-Agent Collaboration AI Agent:
+Add a team of AI Agents working together with divided responsibilities, such as:
+- Data Analyst Agent: Analyzes insights and summarizes patterns
+- Risk Scoring Agent: Provides risk scores based on real-time data
+- Alert Generation Agent: Creates alerts when suspicious transactions are detected
+- Recommendation Agent: Suggests fraud prevention methods based on discovered patterns
+Use LangChain or CrewAI to enable these Agents to communicate and make joint decisions—for example, one Agent flags a transaction and passes it to others for further analysis.
+==============================
+Context-Aware AI Agent:
+- Upgrade the Agent’s memory (from ConversationBufferMemory) to store long-term context, such as each customer’s fraud history or seasonally changing patterns
+- Add the ability to learn from frequently asked user questions to improve accuracy and relevance of responses
+Explainable AI (XAI) Integration:
+- Add the capability for AI Agents to explain why the Machine Learning model judged a transaction as fraudulent, using XAI techniques like SHAP or LIME
+- Example: When a user asks “Why was this transaction flagged?”, the Agent can respond, “This transaction has an unusually high amount and occurred at an unusual time for this user.”
+
+2. Enhancing Fraud Detection Efficiency
+Real-Time Fraud Scoring API:
+- Develop an API that provides real-time risk scores for new transactions, where AI Agents call the ML model and send back risk scores to other systems (e.g., banking systems)
+- Example: The Agent receives new transaction data (e.g., amount, type, time) and responds with a risk score (0-100)
+Graph-Based Fraud Detection:
+- Create an Agent that analyzes relationship graphs between accounts, recipients, and transactions to detect fraud networks (e.g., Money Laundering)
+- Use Graph Neural Networks (GNN) and have the Agent explain patterns like, “This account is connected to 3 suspicious accounts.”
