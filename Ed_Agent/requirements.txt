@@ -1,0 +1,17 @@
+Django>=4.2
+djangorestframework
+psycopg2-binary
+gunicorn
+
+# LangChain + AI
+langchain
+langchain-community
+langchain-openai
+openai
+chromadb
+
+# PDF / PPTX
+pymupdf
+pdfminer.six
+python-pptx
+pytesseract

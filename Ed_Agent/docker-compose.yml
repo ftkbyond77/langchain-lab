@@ -3,16 +3,14 @@ version: "3.9"
 services:
   web:
     build: .
-    command: gunicorn study_ai.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn study_agent.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
       - media:/app/media
     ports:
       - "8000:8000"
-    env_file: .env
     depends_on:
       - db
-      - chroma
 
   db:
     image: postgres:15
@@ -20,19 +18,11 @@ services:
       POSTGRES_DB: study
       POSTGRES_USER: study
       POSTGRES_PASSWORD: study
-    volumes:
-      - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-
-  chroma:
-    image: chromadb/chroma
     volumes:
-      - chromadata:/chroma
-    ports:
-      - "8001:8001"
+      - pgdata:/var/lib/postgresql/data
 
 volumes:
   pgdata:
-  chromadata:
   media:
