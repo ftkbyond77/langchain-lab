@@ -3,7 +3,7 @@ version: "3.9"
 services:
   web:
     build: .
-    command: gunicorn study_agent.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn study_agent.wsgi:application --bind 0.0.0.0:8000 --timeout 120
     volumes:
       - .:/app
       - media:/app/media

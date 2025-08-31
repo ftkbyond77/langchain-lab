@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Study AI Test Dashboard</title>
+</head>
+<body>
+    <h1>Study AI Test Dashboard</h1>
+
+    <h2>Upload Material</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="text" name="title" placeholder="Title">
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+    </form>
+    <pre id="uploadResult"></pre>
+
+    <h2>Generate Study Plan</h2>
+    <button id="planBtn">Generate Plan</button>
+    <pre id="planResult"></pre>
+
+    <h2>Generate Quiz</h2>
+    <select id="materialSelect"></select>
+    <button id="quizBtn">Generate Quiz</button>
+    <pre id="quizResult"></pre>
+
+    <script>
+        const uploadForm = document.getElementById("uploadForm");
+        const uploadResult = document.getElementById("uploadResult");
+        const planBtn = document.getElementById("planBtn");
+        const planResult = document.getElementById("planResult");
+        const quizBtn = document.getElementById("quizBtn");
+        const quizResult = document.getElementById("quizResult");
+        const materialSelect = document.getElementById("materialSelect");
+
+        // Load materials for quiz
+        async function loadMaterials() {
+            const res = await fetch("/api/materials-list/");
+            const data = await res.json();
+            materialSelect.innerHTML = "";
+            data.forEach(m => {
+                const option = document.createElement("option");
+                option.value = m.id;
+                option.text = m.title;
+                materialSelect.add(option);
+            });
+        }
+        loadMaterials();
+
+        // Upload file
+        uploadForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(uploadForm);
+            const res = await fetch("/api/upload/", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            uploadResult.textContent = JSON.stringify(data, null, 2);
+            await loadMaterials();
+        });
+
+        // Generate study plan
+        planBtn.addEventListener("click", async () => {
+            const res = await fetch("/api/study-plan/");
+            const data = await res.json();
+            planResult.textContent = data.study_plan;
+        });
+
+        // Generate quiz
+        quizBtn.addEventListener("click", async () => {
+            const materialId = materialSelect.value;
+            const res = await fetch(`/api/quiz/${materialId}/`);
+            const data = await res.json();
+            quizResult.textContent = data.quiz;
+        });
+    </script>
+</body>
+</html>

@@ -12,7 +12,5 @@ openai
 chromadb
 
 # PDF / PPTX
-pymupdf
-pdfminer.six
-python-pptx
-pytesseract
+pdfminer.six>=20221105
+python-pptx>=0.6.21
