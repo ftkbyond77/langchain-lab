@@ -9,6 +9,11 @@ from dotenv import load_dotenv
 # Load .env
 load_dotenv()
 
+# OPENAI KEY
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("Please set OPENAI_API_KEY in your environment or .env file")
+
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 

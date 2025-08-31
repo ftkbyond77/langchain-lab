@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Study AI Test Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { margin-top: 30px; }
+        pre { background: #f4f4f4; padding: 10px; border: 1px solid #ccc; overflow-x: auto; }
+        #chat-box { border:1px solid #ccc; padding:10px; width:500px; height:300px; overflow-y:scroll; background:#f9f9f9; margin-bottom:5px; }
+        .chat-user { color: blue; margin:5px 0; }
+        .chat-bot { color: green; margin:5px 0; }
+    </style>
 </head>
 <body>
     <h1>Study AI Test Dashboard</h1>
@@ -24,7 +32,13 @@
     <button id="quizBtn">Generate Quiz</button>
     <pre id="quizResult"></pre>
 
+    <h2>Chat with GPT-4</h2>
+    <div id="chat-box"></div>
+    <input type="text" id="chat-input" placeholder="Type your message" style="width:400px;">
+    <button id="chat-btn">Send</button>
+
     <script>
+        // Elements
         const uploadForm = document.getElementById("uploadForm");
         const uploadResult = document.getElementById("uploadResult");
         const planBtn = document.getElementById("planBtn");
@@ -33,7 +47,11 @@
         const quizResult = document.getElementById("quizResult");
         const materialSelect = document.getElementById("materialSelect");
 
-        // Load materials for quiz
+        const chatBox = document.getElementById("chat-box");
+        const chatInput = document.getElementById("chat-input");
+        const chatBtn = document.getElementById("chat-btn");
+
+        // ---------------- Load materials for quiz ----------------
         async function loadMaterials() {
             const res = await fetch("/api/materials-list/");
             const data = await res.json();
@@ -47,32 +65,63 @@
         }
         loadMaterials();
 
-        // Upload file
+        // ---------------- Upload file ----------------
         uploadForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const formData = new FormData(uploadForm);
-            const res = await fetch("/api/upload/", {
-                method: "POST",
-                body: formData
-            });
+            const res = await fetch("/api/upload/", { method: "POST", body: formData });
             const data = await res.json();
             uploadResult.textContent = JSON.stringify(data, null, 2);
             await loadMaterials();
         });
 
-        // Generate study plan
+        // ---------------- Generate study plan ----------------
         planBtn.addEventListener("click", async () => {
             const res = await fetch("/api/study-plan/");
             const data = await res.json();
             planResult.textContent = data.study_plan;
         });
 
-        // Generate quiz
+        // ---------------- Generate quiz ----------------
         quizBtn.addEventListener("click", async () => {
             const materialId = materialSelect.value;
             const res = await fetch(`/api/quiz/${materialId}/`);
             const data = await res.json();
             quizResult.textContent = data.quiz;
+        });
+
+        // ---------------- GPT-4 Chat ----------------
+        chatBtn.addEventListener("click", async () => {
+            const message = chatInput.value;
+            if(!message) return;
+
+            // show user message
+            const userDiv = document.createElement("div");
+            userDiv.textContent = "You: " + message;
+            userDiv.className = "chat-user";
+            chatBox.appendChild(userDiv);
+
+            chatInput.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // call GPT-4 API
+            const res = await fetch("/api/chat/", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message})
+            });
+            const data = await res.json();
+
+            const botDiv = document.createElement("div");
+            botDiv.textContent = "GPT-4: " + (data.answer || data.error);
+            botDiv.className = "chat-bot";
+            chatBox.appendChild(botDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        // Optional: press Enter to send
+        chatInput.addEventListener("keyup", (e) => {
+            if(e.key === "Enter") chatBtn.click();
         });
     </script>
 </body>

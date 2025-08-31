@@ -26,6 +26,8 @@ services:
       # ChromaDB
       CHROMA_API_HOST: chromadb
       CHROMA_API_PORT: 8000
+      # OPENAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
 
   db:
     image: postgres:15

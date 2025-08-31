@@ -12,6 +12,14 @@ from app.agents.embedding_utils import create_embedding
 from app.planner.agent import generate_study_plan
 from app.quiz.agent import generate_quiz
 
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # -------------------------------
 # HTML Dashboard View
@@ -19,6 +27,26 @@ from app.quiz.agent import generate_quiz
 class TestDashboardView(View):
     def get(self, request):
         return render(request, "api/test_dashboard.html")
+
+
+# -------------------------------
+# ChatGPT
+# -------------------------------
+class ChatGPTView(APIView):
+    def post(self, request):
+        user_input = request.data.get("message", "")
+        if not user_input:
+            return Response({"error": "No message provided."}, status=400)
+
+        try:
+            chat = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model_name="gpt-4", temperature=0.7)
+            response = chat([HumanMessage(content=user_input)])
+            answer = response.content
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+        return Response({"answer": answer})
+
 
 
 # -------------------------------
