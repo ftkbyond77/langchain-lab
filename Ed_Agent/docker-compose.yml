@@ -11,18 +11,42 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - chromadb
+    environment:
+      # Postgres env
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      # Django settings
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      # ChromaDB
+      CHROMA_API_HOST: chromadb
+      CHROMA_API_PORT: 8000
 
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: study
-      POSTGRES_USER: study
-      POSTGRES_PASSWORD: study
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chromadb/data
+
 volumes:
   pgdata:
   media:
+  chroma_data:
