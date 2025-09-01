@@ -1,0 +1,3 @@
+LangChain is a framework for building applications with LLMs.
+ChromaDB is a vector database for embeddings and retrieval.
+RAG stands for Retrieval-Augmented Generation.

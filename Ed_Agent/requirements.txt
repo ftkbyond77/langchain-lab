@@ -8,9 +8,13 @@ gunicorn
 langchain
 langchain-community
 langchain-openai
+langchain-chroma
 openai
 chromadb
 
 # PDF / PPTX
 pdfminer.six>=20221105
 python-pptx>=0.6.21
+
+# token
+tiktoken
